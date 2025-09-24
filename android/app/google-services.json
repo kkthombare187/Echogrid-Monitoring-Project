@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "712147450416",
+    "project_id": "ecogrid-monitor",
+    "storage_bucket": "ecogrid-monitor.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:712147450416:android:a640492c39f884f2554bf5",
+        "android_client_info": {
+          "package_name": "com.example.flutter_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAe5UHKS9SBl-yd4u3Cdm5R68oYBpINqcw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
