@@ -1,7 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:async/async.dart'; // <-- ADD THIS IMPORT
+import 'package:async/async.dart'; // Used for combining streams
 
 class RealtimeChart extends StatefulWidget {
   const RealtimeChart({Key? key}) : super(key: key);
@@ -11,19 +11,18 @@ class RealtimeChart extends StatefulWidget {
 }
 
 class _RealtimeChartState extends State<RealtimeChart> {
-  // Create references to the historical data lists
-  final DatabaseReference _generationRef =
-      FirebaseDatabase.instance.ref('history/generation');
-  final DatabaseReference _consumptionRef =
-      FirebaseDatabase.instance.ref('history/consumption');
-  final DatabaseReference _storageRef =
-      FirebaseDatabase.instance.ref('history/storage');
+  // References to the historical data lists in Firebase
+  final DatabaseReference _generationRef = FirebaseDatabase.instance.ref('history/generation');
+  final DatabaseReference _consumptionRef = FirebaseDatabase.instance.ref('history/consumption');
+  final DatabaseReference _storageRef = FirebaseDatabase.instance.ref('history/storage');
 
-  // Helper function to convert a list of numbers into chart data points (FlSpot)
-  List<FlSpot> _createSpots(List<dynamic> data) {
+  // Helper function to safely convert a list of data into chart points (FlSpot)
+  List<FlSpot> _createSpots(List<dynamic>? data) {
     List<FlSpot> spots = [];
+    if (data == null) return spots; // Return empty list if data is null
+
     for (int i = 0; i < data.length; i++) {
-      // Ensure the data point is treated as a number
+      // Safely parse the data point to a double, defaulting to 0.0 if invalid
       double yValue = double.tryParse(data[i].toString()) ?? 0.0;
       spots.add(FlSpot(i.toDouble(), yValue));
     }
@@ -39,31 +38,32 @@ class _RealtimeChartState extends State<RealtimeChart> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         color: const Color(0xff2c4260),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
           // Use a StreamBuilder to listen for all three data streams at once
           child: StreamBuilder(
-            // Use StreamZip for a more reliable way to combine the streams
-            stream: StreamZip([       // <-- THIS LINE WAS CHANGED
+            stream: StreamZip([
               _generationRef.onValue,
               _consumptionRef.onValue,
               _storageRef.onValue
             ]),
-            builder: (context, AsyncSnapshot<List<dynamic>> snapshot) { // <-- THIS TYPE WAS CHANGED
+            builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
               // Show a loading indicator while waiting for data
               if (snapshot.connectionState == ConnectionState.waiting || !snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
+                return const Center(child: CircularProgressIndicator(color: Colors.white));
               }
 
+              // NEW: Show a clear error message if something goes wrong
               if (snapshot.hasError) {
-                return const Center(child: Text('Error loading chart data'));
+                return const Center(
+                  child: Text('Error: Could not load chart data.', style: TextStyle(color: Colors.redAccent)),
+                );
               }
               
               // Extract the data lists from the snapshot
-              // The data is now a List<DatabaseEvent>
               final events = snapshot.data as List<DatabaseEvent>;
-              final generationData = events[0].snapshot.value as List<dynamic>? ?? [];
-              final consumptionData = events[1].snapshot.value as List<dynamic>? ?? [];
-              final storageData = events[2].snapshot.value as List<dynamic>? ?? [];
+              final generationData = events[0].snapshot.value as List<dynamic>?;
+              final consumptionData = events[1].snapshot.value as List<dynamic>?;
+              final storageData = events[2].snapshot.value as List<dynamic>?;
 
               // Convert the lists into chart spots
               final generationSpots = _createSpots(generationData);
@@ -81,12 +81,13 @@ class _RealtimeChartState extends State<RealtimeChart> {
     );
   }
 
-  // This function now accepts the live data points as arguments
+  // This function now includes beautiful gradients below each line
   LineChartData mainData(List<FlSpot> generationSpots, List<FlSpot> consumptionSpots, List<FlSpot> storageSpots) {
     return LineChartData(
       gridData: FlGridData(
         show: true,
         drawVerticalLine: true,
+        horizontalInterval: 100,
         getDrawingHorizontalLine: (value) => const FlLine(color: Color(0xff37434d), strokeWidth: 1),
         getDrawingVerticalLine: (value) => const FlLine(color: Color(0xff37434d), strokeWidth: 1),
       ),
@@ -103,34 +104,30 @@ class _RealtimeChartState extends State<RealtimeChart> {
       minY: 0,
       maxY: 300,
       lineBarsData: [
-        // Line 1: Generation (Green) - USES LIVE DATA
-        LineChartBarData(
-          spots: generationSpots,
-          isCurved: true,
-          color: Colors.greenAccent,
-          barWidth: 5,
-          isStrokeCapRound: true,
-          dotData: const FlDotData(show: false),
-        ),
-        // Line 2: Consumption (Blue) - USES LIVE DATA
-        LineChartBarData(
-          spots: consumptionSpots,
-          isCurved: true,
-          color: Colors.cyan,
-          barWidth: 5,
-          isStrokeCapRound: true,
-          dotData: const FlDotData(show: false),
-        ),
-        // Line 3: Storage (Orange) - USES LIVE DATA
-        LineChartBarData(
-          spots: storageSpots,
-          isCurved: true,
-          color: Colors.orange,
-          barWidth: 5,
-          isStrokeCapRound: true,
-          dotData: const FlDotData(show: false),
-        ),
+        _buildLineChartBarData(generationSpots, Colors.greenAccent, [Colors.greenAccent.withOpacity(0.3), Colors.transparent]),
+        _buildLineChartBarData(consumptionSpots, Colors.cyan, [Colors.cyan.withOpacity(0.3), Colors.transparent]),
+        _buildLineChartBarData(storageSpots, Colors.orange, [Colors.orange.withOpacity(0.3), Colors.transparent]),
       ],
+    );
+  }
+
+  // Helper function to create a styled line with a gradient
+  LineChartBarData _buildLineChartBarData(List<FlSpot> spots, Color color, List<Color> gradientColors) {
+    return LineChartBarData(
+      spots: spots,
+      isCurved: true,
+      color: color,
+      barWidth: 5,
+      isStrokeCapRound: true,
+      dotData: const FlDotData(show: false),
+      belowBarData: BarAreaData(
+        show: true,
+        gradient: LinearGradient(
+          colors: gradientColors,
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
     );
   }
 }

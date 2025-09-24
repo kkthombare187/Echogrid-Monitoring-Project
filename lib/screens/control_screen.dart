@@ -98,6 +98,7 @@ class _ControlScreenState extends State<ControlScreen> {
   }
 
   Widget _buildWeatherCard() {
+    
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -132,7 +133,12 @@ class _ControlScreenState extends State<ControlScreen> {
         ),
       ),
     );
+    
+    
+      
   }
+
+  
 
   Widget _buildWeatherDataDisplay() {
     if (_weatherData == null) return const SizedBox.shrink();
