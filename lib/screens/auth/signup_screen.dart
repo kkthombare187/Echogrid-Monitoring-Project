@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_project/screens/dashboard/admin_dashboard_screen.dart';
 import 'package:flutter_project/screens/dashboard/dashboard_screen.dart';
+import 'package:flutter_project/widgets/custom_textfield.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
-// Enum to manage the selected user role
 enum UserRole { user, admin }
 
 class SignupScreen extends StatefulWidget {
@@ -20,25 +20,26 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _confirmPasswordController =
       TextEditingController();
 
-  UserRole? _selectedRole = UserRole.user; // Default to User
+  UserRole _selectedRole = UserRole.user;
   bool _isLoading = false;
+  String? _errorMessage;
 
+  // Your signup logic remains the same
   Future<void> _signup() async {
     if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Passwords do not match!")),
-      );
+      setState(() {
+        _errorMessage = "Passwords do not match!";
+      });
       return;
     }
 
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
     });
 
     try {
       if (_selectedRole == UserRole.admin) {
-        // --- ADMIN REGISTRATION WITH FIREBASE EXTENSION ---
-        // 1. Create the pending request in Firestore.
         final pendingAdminDoc =
             await FirebaseFirestore.instance.collection('pendingAdmins').add({
           'email': _emailController.text.trim(),
@@ -47,22 +48,16 @@ class _SignupScreenState extends State<SignupScreen> {
           'requestedAt': FieldValue.serverTimestamp(),
         });
 
-        // 2. Create a document in the 'mail' collection to trigger the email extension.
-        // --- IMPORTANT: UPDATE YOUR PROJECT DETAILS ---
-        const region =
-            "us-central1"; // The region of your handleAdminApproval function
-        const projectId = "ecogrid-monitor"; // Your project ID
+        const region = "us-central1";
+        const projectId = "ecogrid-monitor";
         final functionUrl =
             "https://${region}-${projectId}.cloudfunctions.net/handleAdminApproval";
-
         final approveUrl =
             "$functionUrl?id=${pendingAdminDoc.id}&action=approve";
         final denyUrl = "$functionUrl?id=${pendingAdminDoc.id}&action=deny";
 
         await FirebaseFirestore.instance.collection('mail').add({
-          'to': [
-            'karanthombre06@gmail.com'
-          ], // The email that receives the approval request
+          'to': ['karanthombre06@gmail.com'],
           'message': {
             'subject': 'New Admin Registration Request!',
             'html': '''
@@ -75,7 +70,6 @@ class _SignupScreenState extends State<SignupScreen> {
           },
         });
 
-        // 3. Inform the user and navigate back.
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -84,7 +78,6 @@ class _SignupScreenState extends State<SignupScreen> {
           Navigator.pop(context);
         }
       } else {
-        // --- REGULAR USER REGISTRATION ---
         UserCredential userCredential =
             await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
@@ -100,19 +93,20 @@ class _SignupScreenState extends State<SignupScreen> {
         });
 
         if (mounted) {
-          Navigator.of(context).pushReplacement(
+          Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const DashboardScreen()),
+            (route) => false,
           );
         }
       }
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? "Signup failed")),
-      );
+      setState(() {
+        _errorMessage = e.message;
+      });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("An error occurred: ${e.toString()}")),
-      );
+      setState(() {
+        _errorMessage = "An error occurred. Please try again.";
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -125,85 +119,86 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: const Icon(Icons.arrow_back_ios, size: 20, color: Colors.white),
-        ),
       ),
       body: SingleChildScrollView(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 40),
-          height: MediaQuery.of(context).size.height - 100,
+          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
           width: double.infinity,
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              const Column(
-                children: <Widget>[
-                  Text(
-                    "Sign up",
-                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 20),
-                  Text(
-                    "Create an account, it's free",
-                    style: TextStyle(fontSize: 15, color: Colors.grey),
-                  )
+              const Icon(Icons.shield_moon_outlined,
+                  size: 80, color: Colors.greenAccent),
+              const SizedBox(height: 30),
+              const Text(
+                "Sign Up",
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                "Create a new account. It's free!",
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+              const SizedBox(height: 50),
+
+              CustomTextField(
+                controller: _emailController,
+                labelText: "Email",
+                icon: Icons.email_outlined,
+              ),
+              const SizedBox(height: 20),
+              CustomTextField(
+                controller: _passwordController,
+                labelText: "Password",
+                icon: Icons.lock_outline,
+                isPassword: true,
+              ),
+              const SizedBox(height: 20),
+              CustomTextField(
+                controller: _confirmPasswordController,
+                labelText: "Confirm Password",
+                icon: Icons.lock_outline,
+                isPassword: true,
+              ),
+              const SizedBox(height: 20),
+
+              // Improved Role Selection
+              ToggleButtons(
+                isSelected: [
+                  _selectedRole == UserRole.user,
+                  _selectedRole == UserRole.admin
+                ],
+                onPressed: (index) {
+                  setState(() {
+                    _selectedRole = index == 0 ? UserRole.user : UserRole.admin;
+                  });
+                },
+                borderRadius: BorderRadius.circular(12),
+                selectedColor: Colors.black,
+                color: Colors.white,
+                fillColor: Colors.greenAccent,
+                children: const [
+                  Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Text("User")),
+                  Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Text("Admin")),
                 ],
               ),
-              Column(
-                children: <Widget>[
-                  TextField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(labelText: "Email"),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: "Password"),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _confirmPasswordController,
-                    obscureText: true,
-                    decoration:
-                        const InputDecoration(labelText: "Confirm Password"),
-                  ),
-                ],
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Radio<UserRole>(
-                    value: UserRole.user,
-                    groupValue: _selectedRole,
-                    onChanged: (UserRole? value) {
-                      setState(() {
-                        _selectedRole = value;
-                      });
-                    },
-                  ),
-                  const Text('User'),
-                  const SizedBox(width: 20),
-                  Radio<UserRole>(
-                    value: UserRole.admin,
-                    groupValue: _selectedRole,
-                    onChanged: (UserRole? value) {
-                      setState(() {
-                        _selectedRole = value;
-                      });
-                    },
-                  ),
-                  const Text('Admin'),
-                ],
-              ),
+              const SizedBox(height: 20),
+
+              if (_errorMessage != null)
+                Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: Colors.redAccent, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+              const SizedBox(height: 20),
+
               MaterialButton(
                 minWidth: double.infinity,
                 height: 60,
@@ -222,24 +217,27 @@ class _SignupScreenState extends State<SignupScreen> {
                             color: Colors.black),
                       ),
               ),
+              const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
                   const Text("Already have an account?"),
                   GestureDetector(
                     onTap: () {
-                      Navigator.pop(context); // Go back to the login screen
+                      Navigator.pop(context);
                     },
                     child: const Text(
                       " Login",
-                      style:
-                          TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 18,
+                          color: Colors.greenAccent),
                     ),
                   ),
                 ],
               ),
             ],
-          ),
+          ).animate().fadeIn(duration: 600.ms),
         ),
       ),
     );

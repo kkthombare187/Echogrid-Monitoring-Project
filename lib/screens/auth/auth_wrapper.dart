@@ -13,30 +13,35 @@ class AuthWrapper extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // User is not logged in, show the welcome screen
+        // User is not logged in
         if (!snapshot.hasData) {
           return const WelcomeScreen();
         }
 
-        // User is logged in, now check their role from Firestore
+        // User is logged in, check their role
         return FutureBuilder<DocumentSnapshot>(
           future: FirebaseFirestore.instance
               .collection('users')
               .doc(snapshot.data!.uid)
               .get(),
           builder: (context, userSnapshot) {
-            // Still waiting to get the user's role
+            // Still waiting for data
             if (userSnapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(
                   body: Center(child: CircularProgressIndicator()));
             }
 
-            // Error fetching role, default to user dashboard or show error screen
+            // --- IMPROVED ERROR HANDLING ---
+            // If there's an error OR the user document does NOT exist, something is wrong.
+            // This is an invalid state, so we log them out and show the welcome screen.
             if (userSnapshot.hasError || !userSnapshot.data!.exists) {
-              return const DashboardScreen(); // Fallback to user dashboard
+              // It's safer to log out a user who is authenticated but has no user data.
+              FirebaseAuth.instance.signOut();
+              return const WelcomeScreen();
             }
 
-            // Check the role and navigate accordingly
+            // --- SUCCESS PATH ---
+            // We have the user data, now check the role
             final userData = userSnapshot.data!.data() as Map<String, dynamic>;
             if (userData['role'] == 'admin') {
               return const AdminDashboardScreen();
