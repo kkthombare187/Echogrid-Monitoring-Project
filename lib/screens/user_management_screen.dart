@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_project/screens/user_detail_screen.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({Key? key}) : super(key: key);
@@ -9,82 +11,125 @@ class UserManagementScreen extends StatefulWidget {
 }
 
 class _UserManagementScreenState extends State<UserManagementScreen> {
-  // Function to show the options menu (change role, delete)
-  void _showUserOptions(BuildContext context, String userId, String currentRole) {
+  String _currentAdminRole = 'admin';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCurrentAdminRole();
+  }
+
+  Future<void> _fetchCurrentAdminRole() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (mounted && doc.exists) {
+        setState(() {
+          _currentAdminRole = doc.data()?['role'] ?? 'admin';
+        });
+      }
+    }
+  }
+
+  // This function shows the advanced options menu
+  void _showUserOptions(BuildContext context, String targetUserId, String targetUserName, String targetUserRole) {
+    if (targetUserId == FirebaseAuth.instance.currentUser?.uid) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("You cannot perform actions on your own account.")));
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       builder: (context) {
         return Wrap(
           children: <Widget>[
             ListTile(
-              leading: const Icon(Icons.swap_horiz),
-              title: Text(currentRole == 'admin' ? 'Change to User' : 'Change to Admin'),
+              leading: const Icon(Icons.visibility_outlined),
+              title: const Text('View Profile / Details'),
               onTap: () {
-                Navigator.pop(context); // Close the bottom sheet
-                _changeUserRole(userId, currentRole);
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => UserDetailScreen(userId: targetUserId)));
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-              title: const Text('Delete User', style: TextStyle(color: Colors.redAccent)),
+              leading: const Icon(Icons.history_outlined),
+              title: const Text('View User Activity Logs'),
               onTap: () {
-                Navigator.pop(context); // Close the bottom sheet
-                _confirmDeleteUser(context, userId);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Activity log feature coming soon!")));
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.email_outlined),
+              title: const Text('Send Email'),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Email feature coming soon!")));
+              },
+            ),
+            // Delete User option with permission check
+            if ((_currentAdminRole == 'superadmin') || (_currentAdminRole == 'admin' && targetUserRole == 'user'))
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                title: const Text('Delete User Permanently', style: TextStyle(color: Colors.redAccent)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmDeleteUser(context, targetUserId, targetUserName);
+                },
+              ),
           ],
         );
       },
     );
   }
 
-  // Function to change the user's role in Firestore
-  Future<void> _changeUserRole(String userId, String currentRole) async {
-    final newRole = currentRole == 'admin' ? 'user' : 'admin';
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({'role': newRole});
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("User role changed to $newRole.")));
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to change role: $e")));
-    }
-  }
-
-  // Function to show a confirmation dialog before deleting a user
-  void _confirmDeleteUser(BuildContext context, String userId) {
+  // --- Delete functions ---
+  void _confirmDeleteUser(BuildContext context, String userId, String userName) {
     showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirm Delete'),
-          content: const Text('Are you sure you want to delete this user? This action cannot be undone.'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _deleteUser(userId);
-              },
-            ),
-          ],
-        );
-      },
-    );
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+              title: const Text('Confirm Delete'),
+              content: Text('Are you sure you want to delete the user "$userName"? This action cannot be undone.'),
+              actions: <Widget>[
+                TextButton(child: const Text('Cancel'), onPressed: () => Navigator.of(context).pop()),
+                TextButton(
+                  child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _deleteUser(userId);
+                  },
+                ),
+              ],
+            ));
   }
 
-  // Function to delete the user's document from Firestore
   Future<void> _deleteUser(String userId) async {
     try {
       await FirebaseFirestore.instance.collection('users').doc(userId).delete();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("User deleted successfully.")));
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("User deleted successfully.")));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to delete user: $e")));
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to delete user: $e")));
     }
+  }
+
+  // --- Helper to get the correct icon and color for each role ---
+  Widget _getRoleIcon(String role) {
+    IconData icon;
+    Color color;
+    switch (role) {
+      case 'superadmin':
+        icon = Icons.verified_user;
+        color = Colors.amber;
+        break;
+      case 'admin':
+        icon = Icons.admin_panel_settings;
+        color = Colors.greenAccent;
+        break;
+      default:
+        icon = Icons.person;
+        color = Colors.cyan;
+    }
+    return Icon(icon, color: color);
   }
 
   @override
@@ -98,42 +143,30 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance.collection('users').snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return const Center(child: Text('Something went wrong'));
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No users found.'));
-          }
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (snapshot.hasError) return const Center(child: Text('Something went wrong.'));
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('No users found.'));
 
           final users = snapshot.data!.docs;
-
           return ListView.builder(
             itemCount: users.length,
             itemBuilder: (context, index) {
               final userDoc = users[index];
               final user = userDoc.data() as Map<String, dynamic>;
-              final email = user['email'] ?? 'No email';
-              final role = user['role'] ?? 'No role';
+              final role = user['role'] ?? 'user';
               final name = user['name'] ?? 'No name';
+              final email = user['email'] ?? 'No email';
               final userId = userDoc.id;
 
               return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 color: Colors.grey.shade800,
                 child: ListTile(
-                  leading: Icon(
-                    role == 'admin' ? Icons.admin_panel_settings : Icons.person,
-                    color: role == 'admin' ? Colors.greenAccent : Colors.cyan,
-                  ),
+                  leading: _getRoleIcon(role),
                   title: Text(name),
-                  subtitle: Text(email, style: const TextStyle(color: Colors.grey)),
+                  subtitle: Text(email),
                   trailing: IconButton(
                     icon: const Icon(Icons.more_vert),
-                    // Connect the button to our new function
-                    onPressed: () => _showUserOptions(context, userId, role),
+                    onPressed: () => _showUserOptions(context, userId, name, role),
                   ),
                 ),
               );
