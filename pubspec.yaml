@@ -46,6 +46,8 @@ dependencies:
   http: ^1.2.1
   geolocator: ^12.0.0
   flutter_animate: ^4.5.0 
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.13.1
 
 dev_dependencies:
   flutter_test:
@@ -104,3 +106,8 @@ flutter:
 flutter_native_splash:
   color: "#1a1a1a" # This should match your app's background color
 
+# Add this section at the end of pubspec.yaml
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/logo.png"
