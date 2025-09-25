@@ -1,9 +1,16 @@
+
+
+
+
+// lib/screens/dashboard_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_project/screens/auth/welcome_screen.dart';
 import 'package:flutter_project/screens/user_profile_screen.dart';
 import 'package:flutter_project/screens/alerts_screen.dart';
 import 'package:flutter_project/widgets/user_home_content.dart';
+import 'package:flutter_project/screens/user_control_screen.dart'; // <-- 1. ADD THIS IMPORT
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -15,13 +22,12 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
 
-  // THIS LIST HAS BEEN UPDATED
-  // The placeholder for Analytics has been removed.
+  // The list of widgets that correspond to the bottom navigation bar items
   static const List<Widget> _widgetOptions = <Widget>[
-    UserHomeContent(),    // Index 0: Home
-    SizedBox(),           // Index 1: Placeholder for Control
-    AlertsScreen(),       // Index 2: Alerts
-    UserProfileScreen(),  // Index 3: Profile
+    UserHomeContent(),
+    UserControlScreen(), // <-- 2. REPLACE SizedBox() WITH THIS
+    AlertsScreen(),
+    UserProfileScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -32,10 +38,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const WelcomeScreen()),
-      (Route<dynamic> route) => false,
-    );
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+        (Route<dynamic> route) => false,
+      );
+    }
   }
 
   @override
@@ -56,7 +64,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: _widgetOptions.elementAt(_selectedIndex),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        // THIS LIST OF ITEMS HAS BEEN UPDATED
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.settings_remote_outlined), label: 'Control'),
@@ -73,5 +80,3 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 }
-
-

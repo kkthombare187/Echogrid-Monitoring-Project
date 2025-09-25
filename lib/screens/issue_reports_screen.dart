@@ -27,8 +27,8 @@ class IssueReportsScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // Create a stream to listen for real-time changes in the 'issues' collection
-        // Order by timestamp to show the newest reports first
+        // Listen for real-time changes in the 'issues' collection
+        // and order by timestamp to show the newest reports first.
         stream: FirebaseFirestore.instance
             .collection('issues')
             .orderBy('timestamp', descending: true)

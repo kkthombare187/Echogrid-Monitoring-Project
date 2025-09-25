@@ -1,15 +1,14 @@
+
+
 // import 'package:flutter/material.dart';
 // import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:firebase_database/firebase_database.dart';
 // import 'package:flutter_project/screens/auth/welcome_screen.dart';
 // import 'package:flutter_project/screens/admin_profile_screen.dart';
 // import 'package:flutter_project/screens/user_management_screen.dart';
 // import 'package:flutter_project/screens/analytics_screen.dart';
-// // ADD THIS IMPORT to link to the control screen
-// import 'package:flutter_project/screens/control_screen.dart'; 
-// import 'package:flutter_project/widgets/realtime_chart.dart';
-// import 'package:flutter_project/widgets/status_card.dart';
-// import 'package:flutter_project/widgets/summary_card.dart';
+// import 'package:flutter_project/screens/control_screen.dart';
+// // This new file holds the content of the "Home" tab. We will create it next.
+// import 'package:flutter_project/widgets/admin_home_content.dart';
 
 // class AdminDashboardScreen extends StatefulWidget {
 //   const AdminDashboardScreen({Key? key}) : super(key: key);
@@ -19,9 +18,26 @@
 // }
 
 // class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-//   int _selectedIndex = 0; // State for the bottom navigation bar
+//   int _selectedIndex = 0; // Manages which tab is currently selected
 
-//   // Function to handle logout
+//   // A list of the different pages the navigation bar can show.
+//   static const List<Widget> _widgetOptions = <Widget>[
+//     AdminHomeContent(),     // Index 0: The main dashboard view
+//     AnalyticsScreen(),      // Index 1: The Analytics page
+//     ControlScreen(),        // Index 2: The Control page
+//     UserManagementScreen(), // Index 3: The Users page
+//     AdminProfileScreen(),   // Index 4: The Profile page
+//   ];
+
+//   // This function is called when a tab is tapped.
+//   // It simply updates the index to show the correct page inside the shell.
+//   void _onItemTapped(int index) {
+//     setState(() {
+//       _selectedIndex = index;
+//     });
+//   }
+
+//   // Function to handle user logout
 //   Future<void> _logout() async {
 //     await FirebaseAuth.instance.signOut();
 //     Navigator.of(context).pushAndRemoveUntil(
@@ -30,112 +46,27 @@
 //     );
 //   }
 
-//   // THIS FUNCTION IS NOW FULLY CORRECTED
-//   void _onItemTapped(int index) {
-//     if (index == 4) { // Profile tab
-//       Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminProfileScreen()));
-//     } else if (index == 3) { // Users tab
-//        Navigator.push(context, MaterialPageRoute(builder: (context) => const UserManagementScreen()));
-//     } else if (index == 1) { // Analytics tab
-//       Navigator.push(context, MaterialPageRoute(builder: (context) => const AnalyticsScreen()));
-//     } else if (index == 2) { // Control tab
-//       // This is the new line that opens the control screen
-//       Navigator.push(context, MaterialPageRoute(builder: (context) => const ControlScreen()));
-//     }
-//      else {
-//       setState(() {
-//         _selectedIndex = index; // This will only be for the Home tab (index 0)
-//       });
-//     }
-//   }
-
 //   @override
 //   Widget build(BuildContext context) {
-//     // ... (The rest of the file is exactly the same as before)
-//     // Define all database references inside the build method
-//     final DatabaseReference solarRef = FirebaseDatabase.instance.ref('solar_generation');
-//     final DatabaseReference batteryRef = FirebaseDatabase.instance.ref('battery_storage');
-//     final DatabaseReference consumptionRef = FirebaseDatabase.instance.ref('energy_consumption');
-
 //     return Scaffold(
 //       appBar: AppBar(
 //         title: const Text('Admin Dashboard'),
 //         backgroundColor: Colors.transparent,
 //         elevation: 0,
 //         actions: [
-//           IconButton(
-//             icon: const Icon(Icons.person_outline),
-//             onPressed: () {
-//               Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminProfileScreen()));
-//             },
-//           ),
+//           // The logout button remains in the app bar for easy access
 //           IconButton(
 //             icon: const Icon(Icons.logout),
 //             onPressed: _logout,
 //           ),
 //         ],
 //       ),
-//       body: SingleChildScrollView(
-//         child: Padding(
-//           padding: const EdgeInsets.all(16.0),
-//           child: Column(
-//             crossAxisAlignment: CrossAxisAlignment.start,
-//             children: [
-//               const Text('LIVE OVERVIEW', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-//               const SizedBox(height: 16),
-//               Row(
-//                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-//                 children: [
-//                   _buildSummaryCard(solarRef, 'SOLAR GENERATION', 'kW', Icons.wb_sunny, Colors.cyan),
-//                   _buildSummaryCard(consumptionRef, 'CONSUMPTION', 'kW', Icons.power, Colors.blueAccent),
-//                   _buildSummaryCard(batteryRef, 'BATTERY', '%', Icons.battery_charging_full, Colors.orange),
-//                 ],
-//               ),
-//               const SizedBox(height: 24),
-//               const Text('REAL-TIME ENERGY FLOW', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-//               const SizedBox(height: 8),
-//               const Row(
-//                 mainAxisAlignment: MainAxisAlignment.center,
-//                 children: [
-//                   Icon(Icons.circle, color: Colors.greenAccent, size: 12),
-//                   SizedBox(width: 4),
-//                   Text('Generation', style: TextStyle(color: Colors.grey, fontSize: 12)),
-//                   SizedBox(width: 16),
-//                   Icon(Icons.circle, color: Colors.cyan, size: 12),
-//                   SizedBox(width: 4),
-//                   Text('Consumption', style: TextStyle(color: Colors.grey, fontSize: 12)),
-//                   SizedBox(width: 16),
-//                   Icon(Icons.circle, color: Colors.orange, size: 12),
-//                   SizedBox(width: 4),
-//                   Text('Storage', style: TextStyle(color: Colors.grey, fontSize: 12)),
-//                 ],
-//               ),
-//               const SizedBox(height: 8),
-//               const RealtimeChart(),
-//               const SizedBox(height: 24),
-//               const Text('SYSTEM STATUS', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-//               const SizedBox(height: 16),
-//               const StatusCard(
-//                   title: 'ANOMALY DETECTED:',
-//                   subtitle: 'UNEXPECTED DROP IN SOLAR GENERATION',
-//                   icon: Icons.warning_amber_rounded,
-//                   color: Color(0xFFc62828)),
-//               const SizedBox(height: 12),
-//               const StatusCard(
-//                   title: 'PREDICTIVE MAINTENANCE:',
-//                   subtitle: 'INVERTER SERVICE DUE IN 5 DAYS',
-//                   icon: Icons.build_circle_outlined,
-//                   color: Color(0xFFf9a825)),
-//               const SizedBox(height: 12),
-//               const StatusCard(
-//                   title: 'LOAD SCHEDULING:',
-//                   subtitle: 'OPTIMIZED FOR TODAY',
-//                   icon: Icons.check_circle_outline,
-//                   color: Color(0xFF2e7d32)),
-//             ],
-//           ),
-//         ),
+//       // The body of the scaffold now displays the selected page from our list.
+//       // It will swap between the pages without navigating away.
+//       body: Center(
+//         child: _widgetOptions.elementAt(_selectedIndex),
 //       ),
+//       // The bottom navigation bar is now part of this permanent "shell".
 //       bottomNavigationBar: BottomNavigationBar(
 //         items: const <BottomNavigationBarItem>[
 //           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
@@ -149,49 +80,34 @@
 //         unselectedItemColor: Colors.grey,
 //         backgroundColor: const Color(0xff2c4260),
 //         onTap: _onItemTapped,
-//         type: BottomNavigationBarType.fixed,
+//         type: BottomNavigationBarType.fixed, // Ensures all items are visible and have labels
 //       ),
-//     );
-//   }
-
-//   Widget _buildSummaryCard(DatabaseReference ref, String title, String unit, IconData icon, Color color) {
-//     return StreamBuilder(
-//       stream: ref.onValue,
-//       builder: (context, snapshot) {
-//         if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
-//           var value = snapshot.data!.snapshot.value;
-//           double percent = 0.0;
-//           if (unit == '%') {
-//             percent = (double.tryParse(value.toString()) ?? 0) / 100.0;
-//           } else {
-//             percent = (double.tryParse(value.toString()) ?? 0) / 5.0; 
-//           }
-
-//           return SummaryCard(
-//             title: title,
-//             value: '$value $unit',
-//             icon: icon,
-//             progressColor: color,
-//             percent: percent,
-//           );
-//         }
-//         return SummaryCard(title: title, value: '-- $unit', icon: icon, progressColor: Colors.grey, percent: 0.0);
-//       },
 //     );
 //   }
 // }
 
 
 
+
+
+
+
+
+
+
+// lib/screens/admin_dashboard_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // <-- 1. ADD FIRESTORE IMPORT
 import 'package:flutter_project/screens/auth/welcome_screen.dart';
 import 'package:flutter_project/screens/admin_profile_screen.dart';
 import 'package:flutter_project/screens/user_management_screen.dart';
 import 'package:flutter_project/screens/analytics_screen.dart';
 import 'package:flutter_project/screens/control_screen.dart';
-// This new file holds the content of the "Home" tab. We will create it next.
+import 'package:flutter_project/screens/view_reports_screen.dart'; // <-- 2. ADD REPORTS SCREEN IMPORT
 import 'package:flutter_project/widgets/admin_home_content.dart';
+
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({Key? key}) : super(key: key);
@@ -201,32 +117,77 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  int _selectedIndex = 0; // Manages which tab is currently selected
+  int _selectedIndex = 0;
 
-  // A list of the different pages the navigation bar can show.
   static const List<Widget> _widgetOptions = <Widget>[
-    AdminHomeContent(),     // Index 0: The main dashboard view
-    AnalyticsScreen(),      // Index 1: The Analytics page
-    ControlScreen(),        // Index 2: The Control page
-    UserManagementScreen(), // Index 3: The Users page
-    AdminProfileScreen(),   // Index 4: The Profile page
+    AdminHomeContent(),
+    AnalyticsScreen(),
+    ControlScreen(),
+    UserManagementScreen(),
+    AdminProfileScreen(),
   ];
 
-  // This function is called when a tab is tapped.
-  // It simply updates the index to show the correct page inside the shell.
+  @override
+  void initState() {
+    super.initState();
+    // Use a short delay to ensure the UI is built before showing a dialog
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkNewReports());
+  }
+
+  // --- NEW: FUNCTION TO CHECK FOR REPORTS ---
+  Future<void> _checkNewReports() async {
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection('reports')
+        .where('status', isEqualTo: 'new')
+        .get();
+
+    final newReportCount = querySnapshot.size;
+
+    if (newReportCount > 0 && mounted) {
+      _showNewReportsDialog(newReportCount);
+    }
+  }
+
+  // --- NEW: FUNCTION TO SHOW THE DIALOG ---
+  void _showNewReportsDialog(int count) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('New Reports Spotted!'),
+        content: Text('You have $count unread report(s). Would you like to view them now?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Later'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Close the dialog
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const ViewReportsScreen()),
+              );
+            },
+            child: const Text('View Now'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
 
-  // Function to handle user logout
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const WelcomeScreen()),
-      (Route<dynamic> route) => false,
-    );
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+        (Route<dynamic> route) => false,
+      );
+    }
   }
 
   @override
@@ -237,19 +198,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          // The logout button remains in the app bar for easy access
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
           ),
         ],
       ),
-      // The body of the scaffold now displays the selected page from our list.
-      // It will swap between the pages without navigating away.
       body: Center(
         child: _widgetOptions.elementAt(_selectedIndex),
       ),
-      // The bottom navigation bar is now part of this permanent "shell".
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
@@ -263,9 +220,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         unselectedItemColor: Colors.grey,
         backgroundColor: const Color(0xff2c4260),
         onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed, // Ensures all items are visible and have labels
+        type: BottomNavigationBarType.fixed,
       ),
     );
   }
 }
-
