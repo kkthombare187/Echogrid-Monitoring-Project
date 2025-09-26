@@ -1,7 +1,7 @@
-// lib/screens/analytics_screen.dart
-import 'package:fl_chart/fl_chart.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_project/services/ml_model_service.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:http/http.dart' as http;
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({Key? key}) : super(key: key);
@@ -11,49 +11,51 @@ class AnalyticsScreen extends StatefulWidget {
 }
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
-  // --- MODIFIED state variable to hold a list ---
-  List<double>? _predictedLoads;
-  bool _isLoadingForecast = true;
-  String? _forecastError;
+  List<double> _predictions = [];
+  bool _loading = true;
 
-  final _feature1Controller = TextEditingController(text: '10.5');
-  final _feature2Controller = TextEditingController(text: '25.0');
-  
   @override
   void initState() {
     super.initState();
-    _fetchForecast();
+    fetchPredictions();
   }
 
-  @override
-  void dispose() {
-    _feature1Controller.dispose();
-    _feature2Controller.dispose();
-    super.dispose();
-  }
+  Future<void> fetchPredictions() async {
+    const url = "https://us-central1-ecogrid-monitor.cloudfunctions.net/predict_load";
 
-  Future<void> _fetchForecast() async {
-    setState(() {
-      _isLoadingForecast = true;
-      _forecastError = null;
+    final body = jsonEncode({
+      "data": {
+        "day_of_week": DateTime.now().add(Duration(days: 1)).weekday - 1,
+        "day_of_month": DateTime.now().add(Duration(days: 1)).day,
+        "month": DateTime.now().add(Duration(days: 1)).month,
+        "quarter": ((DateTime.now().add(Duration(days: 1)).month - 1) ~/ 3) + 1,
+        "year": DateTime.now().add(Duration(days: 1)).year,
+        "is_weekend": DateTime.now().add(Duration(days: 1)).weekday >= 6 ? 1 : 0
+      }
     });
 
-    Map<String, dynamic> modelInput = {
-      "feature1": double.tryParse(_feature1Controller.text) ?? 0.0,
-      "feature2": double.tryParse(_feature2Controller.text) ?? 0.0,
-    };
-
     try {
-      // --- MODIFIED to get a list of forecasts ---
-      List<double> forecasts = await MLModelService.getLoadForecast(modelInput);
-      setState(() {
-        _predictedLoads = forecasts;
-        _isLoadingForecast = false;
-      });
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {"Content-Type": "application/json"},
+        body: body,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        List<dynamic> preds = data['predictions'];
+
+        setState(() {
+          _predictions = preds.map((e) => (e as num).toDouble()).toList();
+          _loading = false;
+        });
+      } else {
+        throw Exception('Failed to load predictions');
+      }
     } catch (e) {
+      print(e);
       setState(() {
-        _forecastError = e.toString();
-        _isLoadingForecast = false;
+        _loading = false;
       });
     }
   }
@@ -61,130 +63,114 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[900],
       appBar: AppBar(
-        title: const Text('System Analytics'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchForecast,
-            tooltip: 'Get Forecast',
-          ),
-        ],
+        title: const Text('Tomorrow\'s Power Forecast'),
+        backgroundColor: Colors.black87,
       ),
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: ListView(
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            // This section is now the dynamic chart
-            _buildLoadForecastChart(),
-            const SizedBox(height: 24),
-            
-            _buildInputFields(),
-            // ... other sections ...
-          ],
-        ),
-      ),
-    );
-  }
-
-  // --- MODIFIED WIDGET: Now a dynamic bar chart ---
-  Widget _buildLoadForecastChart() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('24-Hour Load Forecast', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 200,
-          child: Card(
-            color: Colors.grey.shade800,
-            child: Padding(
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
               padding: const EdgeInsets.all(16.0),
-              child: _isLoadingForecast
-                  ? const Center(child: CircularProgressIndicator())
-                  : _forecastError != null
-                      ? Center(child: Text('Error: Could not get forecast.', style: TextStyle(color: Colors.red[300])))
-                      : BarChart(
-                          BarChartData(
-                            alignment: BarChartAlignment.spaceAround,
-                            barGroups: _generateBarGroups(), // Dynamically generate bars
-                            titlesData: FlTitlesData(
-                              bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: _bottomTitles)),
-                              leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40)),
-                              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              child: Column(
+                children: [
+                  const Text(
+                    'Expected Power Generation (MW) for Each Hour',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: _predictions.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No data available',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          )
+                        : LineChart(
+                            LineChartData(
+                              gridData: FlGridData(
+                                show: true,
+                                drawVerticalLine: true,
+                                getDrawingHorizontalLine: (value) {
+                                  return FlLine(
+                                    color: Colors.white24,
+                                    strokeWidth: 1,
+                                  );
+                                },
+                                getDrawingVerticalLine: (value) {
+                                  return FlLine(
+                                    color: Colors.white24,
+                                    strokeWidth: 1,
+                                  );
+                                },
+                              ),
+                              titlesData: FlTitlesData(
+                                bottomTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    interval: 2,
+                                    getTitlesWidget: (value, meta) {
+                                      int hour = value.toInt();
+                                      return Text(
+                                        '$hour',
+                                        style: const TextStyle(
+                                            color: Colors.white, fontSize: 10),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                leftTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    interval: 2,
+                                    getTitlesWidget: (value, meta) {
+                                      return Text(
+                                        '${value.toInt()}',
+                                        style: const TextStyle(
+                                            color: Colors.white, fontSize: 10),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                topTitles:
+                                    AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                rightTitles:
+                                    AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              ),
+                              borderData: FlBorderData(
+                                show: true,
+                                border: Border.all(color: Colors.white24),
+                              ),
+                              minX: 0,
+                              maxX: 23,
+                              minY: 0,
+                              maxY: (_predictions.reduce(
+                                          (a, b) => a > b ? a : b) *
+                                      1.2)
+                                  .ceilToDouble(),
+                              lineBarsData: [
+                                LineChartBarData(
+                                  spots: List.generate(
+                                    _predictions.length,
+                                    (index) => FlSpot(index.toDouble(),
+                                        _predictions[index]),
+                                  ),
+                                  isCurved: true,
+                                  color: Colors.greenAccent,
+                                  barWidth: 3,
+                                  dotData: FlDotData(show: true),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // --- NEW HELPER: To generate chart bars from prediction data ---
-  List<BarChartGroupData> _generateBarGroups() {
-    if (_predictedLoads == null) return [];
-    return List.generate(_predictedLoads!.length, (index) {
-      return BarChartGroupData(
-        x: index,
-        barRods: [
-          BarChartRodData(toY: _predictedLoads![index], color: Colors.greenAccent),
-        ],
-      );
-    });
-  }
-
-  // --- NEW HELPER: To create labels for the bottom of the chart ---
-  Widget _bottomTitles(double value, TitleMeta meta) {
-    const style = TextStyle(fontSize: 10);
-    String text;
-    // Show a label every 6 hours
-    if (value.toInt() % 6 == 0) {
-      text = '${value.toInt()}h';
-    } else {
-      text = '';
-    }
-    return SideTitleWidget(axisSide: meta.axisSide, child: Text(text, style: style));
-  }
-  
-  // Other widgets like _buildInputFields remain the same...
-  Widget _buildInputFields() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Forecast Input', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
-        Card(
-          color: Colors.grey.shade800,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                TextField(
-                  controller: _feature1Controller,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Feature 1',
-                    border: OutlineInputBorder(),
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _feature2Controller,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Feature 2',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ),
-      ],
     );
   }
 }

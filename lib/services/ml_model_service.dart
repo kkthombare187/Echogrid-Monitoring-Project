@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class MLModelService {
-  static const String _functionUrl = 'PASTE_YOUR_HTTP_TRIGGER_URL_HERE';
+  static const String _functionUrl = 'https://us-central1-ecogrid-monitor.cloudfunctions.net/predict_load';
 
   // --- MODIFIED to return a List<double> ---
   static Future<List<double>> getLoadForecast(Map<String, dynamic> inputData) async {
