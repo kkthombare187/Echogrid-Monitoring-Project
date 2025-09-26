@@ -383,16 +383,16 @@ class _ControlScreenState extends State<ControlScreen> {
             const SizedBox(height: 24),
             
             // ... (Remote Load Management code remains the same)
-             _buildSectionHeader('Remote Load Management'),
+             _buildSectionHeader('Load ON/OFF'),
             Card(
               elevation: 2,
               color: const Color(0xFF1E1E1E),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               child: Column(
                 children: [
-                  _buildControlSwitch('Agricultural Water Pumps', 'waterPumps', Icons.water_drop, Colors.blueAccent),
+                  _buildControlSwitch('Load status','Load',Icons.water_drop, Colors.blueAccent),
                   const Divider(height: 1, indent: 16, endIndent: 16),
-                  _buildControlSwitch('Village Street Lights', 'streetLights', Icons.lightbulb, Colors.amberAccent),
+                  
                 ],
               ),
             ),
