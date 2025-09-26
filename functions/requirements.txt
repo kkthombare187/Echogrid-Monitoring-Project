@@ -1,0 +1,6 @@
+firebase-functions~=0.1.0
+firebase-admin
+pandas
+scikit-learn
+lightgbm
+# add any other packages your model needs

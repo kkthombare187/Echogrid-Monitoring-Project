@@ -1,5 +1,7 @@
+// lib/screens/analytics_screen.dart
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_project/services/ml_model_service.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({Key? key}) : super(key: key);
@@ -9,151 +11,112 @@ class AnalyticsScreen extends StatefulWidget {
 }
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
-  // State to manage which date range is selected
-  String _selectedRange = 'Last 7 Days';
+  // --- MODIFIED state variable to hold a list ---
+  List<double>? _predictedLoads;
+  bool _isLoadingForecast = true;
+  String? _forecastError;
+
+  final _feature1Controller = TextEditingController(text: '10.5');
+  final _feature2Controller = TextEditingController(text: '25.0');
+  
+  @override
+  void initState() {
+    super.initState();
+    _fetchForecast();
+  }
+
+  @override
+  void dispose() {
+    _feature1Controller.dispose();
+    _feature2Controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchForecast() async {
+    setState(() {
+      _isLoadingForecast = true;
+      _forecastError = null;
+    });
+
+    Map<String, dynamic> modelInput = {
+      "feature1": double.tryParse(_feature1Controller.text) ?? 0.0,
+      "feature2": double.tryParse(_feature2Controller.text) ?? 0.0,
+    };
+
+    try {
+      // --- MODIFIED to get a list of forecasts ---
+      List<double> forecasts = await MLModelService.getLoadForecast(modelInput);
+      setState(() {
+        _predictedLoads = forecasts;
+        _isLoadingForecast = false;
+      });
+    } catch (e) {
+      setState(() {
+        _forecastError = e.toString();
+        _isLoadingForecast = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('System Analytics'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          // Section 1: Date Range Selector
-          _buildDateRangeSelector(),
-          const SizedBox(height: 24),
-
-          // Section 2: Historical Performance Summary
-          _buildHistoricalSummary(),
-          const SizedBox(height: 24),
-          
-          // Section 3: Peak Usage Times
-          _buildPeakUsageCard(),
-          const SizedBox(height: 24),
-
-          // Section 4: Predictive Analytics (Forecast)
-          _buildForecastSection(),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchForecast,
+            tooltip: 'Get Forecast',
+          ),
         ],
       ),
-    );
-  }
-
-  // --- WIDGET BUILDERS ---
-
-  Widget _buildDateRangeSelector() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _dateButton('Last 7 Days'),
-        _dateButton('Last 30 Days'),
-        _dateButton('Custom'),
-      ],
-    );
-  }
-
-  Widget _dateButton(String title) {
-    final isSelected = _selectedRange == title;
-    return ElevatedButton(
-      onPressed: () {
-        setState(() {
-          _selectedRange = title;
-          // In the future, this will trigger a data refresh
-        });
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? Colors.greenAccent : Colors.grey.shade800,
-        foregroundColor: isSelected ? Colors.black : Colors.white,
-      ),
-      child: Text(title),
-    );
-  }
-
-  Widget _buildHistoricalSummary() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Historical Performance', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: ListView(
+          padding: const EdgeInsets.all(16.0),
           children: [
-            _summaryCard('Total Generated', '452 kWh', Icons.flash_on, Colors.cyan),
-            _summaryCard('Total Consumed', '418 kWh', Icons.power, Colors.blueAccent),
-            _summaryCard('Grid Uptime', '99.8%', Icons.check_circle, Colors.greenAccent),
+            // This section is now the dynamic chart
+            _buildLoadForecastChart(),
+            const SizedBox(height: 24),
+            
+            _buildInputFields(),
+            // ... other sections ...
           ],
         ),
-      ],
-    );
-  }
-
-  Widget _summaryCard(String title, String value, IconData icon, Color color) {
-    return Expanded(
-      child: Card(
-        color: Colors.grey.shade800,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 30),
-              const SizedBox(height: 8),
-              Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12), textAlign: TextAlign.center),
-            ],
-          ),
-        ),
       ),
     );
   }
 
-  Widget _buildPeakUsageCard() {
-    return Card(
-      color: Colors.grey.shade800,
-      child: const ListTile(
-        leading: Icon(Icons.timer_outlined, color: Colors.orange),
-        title: Text('Peak Usage Time'),
-        subtitle: Text('Highest energy consumption typically occurs between 6 PM - 8 PM on weekdays.'),
-      ),
-    );
-  }
-
-  Widget _buildForecastSection() {
+  // --- MODIFIED WIDGET: Now a dynamic bar chart ---
+  Widget _buildLoadForecastChart() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('24-Hour Solar Generation Forecast', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text('24-Hour Load Forecast', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         SizedBox(
-          height: 150,
+          height: 200,
           child: Card(
             color: Colors.grey.shade800,
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              // Using a BarChart from fl_chart for the forecast
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: 20, // Max predicted kWh in a given hour
-                  barTouchData: BarTouchData(enabled: false),
-                  titlesData: const FlTitlesData(
-                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  ),
-                  gridData: const FlGridData(show: false),
-                  borderData: FlBorderData(show: false),
-                  barGroups: [
-                    // Placeholder data for the next 24 hours
-                    _forecastBar(0, 2), _forecastBar(1, 5), _forecastBar(2, 10),
-                    _forecastBar(3, 15), _forecastBar(4, 18), _forecastBar(5, 16),
-                    _forecastBar(6, 12), _forecastBar(7, 8), _forecastBar(8, 4),
-                  ],
-                ),
-              ),
+              child: _isLoadingForecast
+                  ? const Center(child: CircularProgressIndicator())
+                  : _forecastError != null
+                      ? Center(child: Text('Error: Could not get forecast.', style: TextStyle(color: Colors.red[300])))
+                      : BarChart(
+                          BarChartData(
+                            alignment: BarChartAlignment.spaceAround,
+                            barGroups: _generateBarGroups(), // Dynamically generate bars
+                            titlesData: FlTitlesData(
+                              bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: _bottomTitles)),
+                              leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40)),
+                              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            ),
+                          ),
+                        ),
             ),
           ),
         ),
@@ -161,12 +124,66 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  // Helper for creating a single bar in the forecast chart
-  BarChartGroupData _forecastBar(int x, double y) {
-    return BarChartGroupData(
-      x: x,
-      barRods: [
-        BarChartRodData(toY: y, color: Colors.greenAccent, width: 12, borderRadius: BorderRadius.circular(4)),
+  // --- NEW HELPER: To generate chart bars from prediction data ---
+  List<BarChartGroupData> _generateBarGroups() {
+    if (_predictedLoads == null) return [];
+    return List.generate(_predictedLoads!.length, (index) {
+      return BarChartGroupData(
+        x: index,
+        barRods: [
+          BarChartRodData(toY: _predictedLoads![index], color: Colors.greenAccent),
+        ],
+      );
+    });
+  }
+
+  // --- NEW HELPER: To create labels for the bottom of the chart ---
+  Widget _bottomTitles(double value, TitleMeta meta) {
+    const style = TextStyle(fontSize: 10);
+    String text;
+    // Show a label every 6 hours
+    if (value.toInt() % 6 == 0) {
+      text = '${value.toInt()}h';
+    } else {
+      text = '';
+    }
+    return SideTitleWidget(axisSide: meta.axisSide, child: Text(text, style: style));
+  }
+  
+  // Other widgets like _buildInputFields remain the same...
+  Widget _buildInputFields() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Forecast Input', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        Card(
+          color: Colors.grey.shade800,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _feature1Controller,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Feature 1',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _feature2Controller,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Feature 2',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
