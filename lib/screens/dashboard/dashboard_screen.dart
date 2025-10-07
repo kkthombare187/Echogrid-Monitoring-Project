@@ -53,12 +53,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: const Text('EcoGrid Monitor'),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-          ),
-        ],
       ),
       body: Center(
         child: _widgetOptions.elementAt(_selectedIndex),

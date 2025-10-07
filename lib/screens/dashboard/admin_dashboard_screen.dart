@@ -1,12 +1,4 @@
 
-
-
-
-
-
-
-
-
 // lib/screens/admin_dashboard_screen.dart
 
 import 'package:flutter/material.dart';
@@ -109,12 +101,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         title: const Text('Admin Dashboard'),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-          ),
-        ],
+       
       ),
       body: Center(
         child: _widgetOptions.elementAt(_selectedIndex),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_project/screens/auth/welcome_screen.dart'; // This import is required for the logout function
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({Key? key}) : super(key: key);
@@ -10,11 +11,10 @@ class UserProfileScreen extends StatefulWidget {
 }
 
 class _UserProfileScreenState extends State<UserProfileScreen> {
-  // Controllers for the text fields
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  bool _isLoading = true; // Start in loading state to fetch data
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -22,7 +22,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     _loadUserData();
   }
 
-  // Fetch existing user data from Firestore
   Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -40,7 +39,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (mounted) setState(() { _isLoading = false; });
   }
 
-  // Function to save the updated name and mobile number
   Future<void> _updateProfile() async {
     setState(() { _isLoading = true; });
     final user = FirebaseAuth.instance.currentUser;
@@ -59,7 +57,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (mounted) setState(() { _isLoading = false; });
   }
 
-  // Function to send a password reset email
   Future<void> _changePassword() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null && user.email != null) {
@@ -80,6 +77,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
   }
 
+  Future<void> _logout() async {
+    if (!mounted) return;
+    await FirebaseAuth.instance.signOut();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+      (Route<dynamic> route) => false,
+    );
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -90,7 +96,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // This screen content is displayed inside the UserDashboardScreen
     return _isLoading
         ? const Center(child: CircularProgressIndicator())
         : RefreshIndicator(
@@ -141,12 +146,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   subtitle: const Text('Send a password reset link to your email'),
                   onTap: _changePassword,
                 ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.logout, color: Colors.redAccent),
+                  title: const Text('Log Out', style: TextStyle(color: Colors.redAccent)),
+                  onTap: _logout,
+                ),
               ],
             ),
           );
   }
 
-  // Helper Widget for text fields
   Widget _buildTextField(TextEditingController controller, String label, IconData icon, {TextInputType? keyboardType, bool readOnly = false}) {
     return TextField(
       controller: controller,

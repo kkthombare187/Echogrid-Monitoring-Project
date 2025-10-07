@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_project/screens/auth/welcome_screen.dart';
 import 'package:flutter_project/screens/user_control_screen.dart';
 import 'package:flutter_project/widgets/user_home_content.dart';
-import 'package:flutter_project/screens/user_alerts_screen.dart'; // This line fixes the error
+import 'package:flutter_project/screens/user_alerts_screen.dart';
 import 'package:flutter_project/screens/user_profile_screen.dart';
 
 class UserDashboardScreen extends StatefulWidget {
@@ -19,7 +19,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
   static const List<Widget> _widgetOptions = <Widget>[
     UserHomeContent(),
     UserControlScreen(),
-    UserAlertsScreen(), // The error was because this screen couldn't be found
+    UserAlertsScreen(),
     UserProfileScreen(),
   ];
 
@@ -29,14 +29,8 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     });
   }
 
-  Future<void> _logout() async {
-    if (!mounted) return;
-    await FirebaseAuth.instance.signOut();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const WelcomeScreen()),
-      (Route<dynamic> route) => false,
-    );
-  }
+  // The logout function is no longer needed here,
+  // as it's handled on the profile screen.
 
   @override
   Widget build(BuildContext context) {
@@ -44,12 +38,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
       appBar: AppBar(
         title: const Text('EcoGrid Monitor'),
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-          ),
-        ],
+        // The actions property and the IconButton have been removed from here.
       ),
       body: Center(
         child: _widgetOptions.elementAt(_selectedIndex),
