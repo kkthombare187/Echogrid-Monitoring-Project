@@ -37,6 +37,7 @@ class _RealtimeChartState extends State<RealtimeChart> {
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         color: const Color(0xff2c4260),
+        clipBehavior: Clip.antiAlias,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
           // Use a StreamBuilder to listen for all three data streams at once
@@ -52,7 +53,7 @@ class _RealtimeChartState extends State<RealtimeChart> {
                 return const Center(child: CircularProgressIndicator(color: Colors.white));
               }
 
-              // NEW: Show a clear error message if something goes wrong
+              // Show a clear error message if something goes wrong
               if (snapshot.hasError) {
                 return const Center(
                   child: Text('Error: Could not load chart data.', style: TextStyle(color: Colors.redAccent)),
@@ -60,7 +61,7 @@ class _RealtimeChartState extends State<RealtimeChart> {
               }
               
               // Extract the data lists from the snapshot
-              final events = snapshot.data as List<DatabaseEvent>;
+              final events = snapshot.data! as List<DatabaseEvent>;
               final generationData = events[0].snapshot.value as List<dynamic>?;
               final consumptionData = events[1].snapshot.value as List<dynamic>?;
               final storageData = events[2].snapshot.value as List<dynamic>?;
@@ -91,17 +92,17 @@ class _RealtimeChartState extends State<RealtimeChart> {
         getDrawingHorizontalLine: (value) => const FlLine(color: Color(0xff37434d), strokeWidth: 1),
         getDrawingVerticalLine: (value) => const FlLine(color: Color(0xff37434d), strokeWidth: 1),
       ),
-      titlesData: const FlTitlesData(
+      titlesData: FlTitlesData(
           show: true,
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 30, interval: 1)),
-          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 42, interval: 100)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 30, interval: 1, getTitlesWidget: (value, meta) => Text(value.toInt().toString(), style: const TextStyle(color: Colors.grey, fontSize: 12)))),
+          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 42, interval: 100, getTitlesWidget: (value, meta) => Text(value.toInt().toString(), style: const TextStyle(color: Colors.grey, fontSize: 12))))
       ),
       borderData: FlBorderData(show: true, border: Border.all(color: const Color(0xff37434d))),
       minX: 0,
       maxX: 11,
-      minY: 0,
+      minY: -50, // This creates space at the bottom of the chart
       maxY: 300,
       lineBarsData: [
         _buildLineChartBarData(generationSpots, Colors.greenAccent, [Colors.greenAccent.withOpacity(0.3), Colors.transparent]),
