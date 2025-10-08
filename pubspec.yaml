@@ -1,17 +1,17 @@
 name: flutter_project
 description: "A new Flutter project."
-publish_to: 'none' 
+publish_to: 'none'
 
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.4.3 <4.0.0'
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  # The incorrect, nested http line has been removed from here.
 
+  # --- ALL PACKAGES BELOW ARE NOW CORRECTLY INDENTED ---
   cupertino_icons: ^1.0.8
   firebase_core: ^3.1.1
   fl_chart: ^0.68.0
@@ -22,11 +22,17 @@ dependencies:
   image_picker: ^1.1.2
   firebase_storage: ^12.1.0
   flutter_native_splash: ^2.4.0
-  http: ^1.2.1 # This is the single, correctly placed http package.
+  http: ^1.2.1
   geolocator: ^12.0.0
   flutter_animate: ^4.5.0
   flutter_launcher_icons: ^0.13.1
   intl: ^0.19.0
+  # --- CORRECTED PACKAGE NAME HERE ---
+  #vibration: ^1.8.4
+  google_fonts: ^6.1.0
+  flutter_spinkit: ^5.2.0
+  async: ^2.11.0
+  
 
 dev_dependencies:
   flutter_test:
@@ -36,12 +42,11 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
   # assets:
   #   - assets/logo.png
 
 flutter_native_splash:
-  color: "#1a1a1a" 
+  color: "#1a1a1a"
 
 flutter_launcher_icons:
   android: "launcher_icon"

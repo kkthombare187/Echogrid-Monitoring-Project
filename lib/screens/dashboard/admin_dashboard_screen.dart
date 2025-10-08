@@ -3,13 +3,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // <-- 1. ADD FIRESTORE IMPORT
+import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:flutter_project/screens/auth/welcome_screen.dart';
 import 'package:flutter_project/screens/admin_profile_screen.dart';
 import 'package:flutter_project/screens/user_management_screen.dart';
 import 'package:flutter_project/screens/analytics_screen.dart';
 import 'package:flutter_project/screens/control_screen.dart';
-import 'package:flutter_project/screens/view_reports_screen.dart'; // <-- 2. ADD REPORTS SCREEN IMPORT
+import 'package:flutter_project/screens/view_reports_screen.dart'; 
 import 'package:flutter_project/widgets/admin_home_content.dart';
 
 
@@ -98,10 +98,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Dashboard'),
+        // --- THIS IS THE CHANGE ---
+        title: const Text(
+          'Admin Dashboard',
+          style: TextStyle(
+            color: Color(0xFFEAEAEA), // High-contrast off-white color
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-       
+        
       ),
       body: Center(
         child: _widgetOptions.elementAt(_selectedIndex),

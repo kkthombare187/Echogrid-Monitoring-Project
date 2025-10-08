@@ -34,10 +34,7 @@ class _RealtimeChartState extends State<RealtimeChart> {
     return AspectRatio(
       aspectRatio: 1.70,
       child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        color: const Color(0xff2c4260),
-        clipBehavior: Clip.antiAlias,
+        clipBehavior: Clip.antiAlias, // This prevents the chart from drawing outside the card
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
           // Use a StreamBuilder to listen for all three data streams at once
@@ -50,26 +47,24 @@ class _RealtimeChartState extends State<RealtimeChart> {
             builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
               // Show a loading indicator while waiting for data
               if (snapshot.connectionState == ConnectionState.waiting || !snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator(color: Colors.white));
+                return const Center(child: CircularProgressIndicator());
               }
 
-              // Show a clear error message if something goes wrong
               if (snapshot.hasError) {
-                return const Center(
-                  child: Text('Error: Could not load chart data.', style: TextStyle(color: Colors.redAccent)),
+                return Center(
+                  child: Text(
+                    'Error loading chart data.\nCheck database rules.',
+                    style: TextStyle(color: Colors.redAccent.withOpacity(0.7)),
+                    textAlign: TextAlign.center,
+                  ),
                 );
               }
               
               // Extract the data lists from the snapshot
-              final events = snapshot.data! as List<DatabaseEvent>;
-              final generationData = events[0].snapshot.value as List<dynamic>?;
-              final consumptionData = events[1].snapshot.value as List<dynamic>?;
-              final storageData = events[2].snapshot.value as List<dynamic>?;
-
-              // Convert the lists into chart spots
-              final generationSpots = _createSpots(generationData);
-              final consumptionSpots = _createSpots(consumptionData);
-              final storageSpots = _createSpots(storageData);
+              final events = snapshot.data as List<DatabaseEvent>;
+              final generationSpots = _createSpots(events[0].snapshot.value as List<dynamic>?);
+              final consumptionSpots = _createSpots(events[1].snapshot.value as List<dynamic>?);
+              final storageSpots = _createSpots(events[2].snapshot.value as List<dynamic>?);
 
               // Return the LineChart with the live data
               return LineChart(
@@ -82,9 +77,19 @@ class _RealtimeChartState extends State<RealtimeChart> {
     );
   }
 
-  // This function now includes beautiful gradients below each line
+  // This function now includes the interactive touch data
   LineChartData mainData(List<FlSpot> generationSpots, List<FlSpot> consumptionSpots, List<FlSpot> storageSpots) {
     return LineChartData(
+      // --- UPDATED: Interactive Tooltips ---
+      lineTouchData: LineTouchData(
+        handleBuiltInTouches: true,
+        touchTooltipData: LineTouchTooltipData(
+          // The 'tooltipBgColor' property is replaced by 'getTooltipColor'
+          getTooltipColor: (touchedSpot) {
+            return Colors.blueGrey.withOpacity(0.8);
+          },
+        ),
+      ),
       gridData: FlGridData(
         show: true,
         drawVerticalLine: true,
@@ -92,17 +97,17 @@ class _RealtimeChartState extends State<RealtimeChart> {
         getDrawingHorizontalLine: (value) => const FlLine(color: Color(0xff37434d), strokeWidth: 1),
         getDrawingVerticalLine: (value) => const FlLine(color: Color(0xff37434d), strokeWidth: 1),
       ),
-      titlesData: FlTitlesData(
+      titlesData: const FlTitlesData(
           show: true,
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 30, interval: 1, getTitlesWidget: (value, meta) => Text(value.toInt().toString(), style: const TextStyle(color: Colors.grey, fontSize: 12)))),
-          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 42, interval: 100, getTitlesWidget: (value, meta) => Text(value.toInt().toString(), style: const TextStyle(color: Colors.grey, fontSize: 12))))
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 30, interval: 1)),
+          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 42, interval: 100)),
       ),
-      borderData: FlBorderData(show: true, border: Border.all(color: const Color(0xff37434d))),
+      borderData: FlBorderData(show: false),
       minX: 0,
       maxX: 11,
-      minY: -50, // This creates space at the bottom of the chart
+      minY: -50, // Added padding at the bottom
       maxY: 300,
       lineBarsData: [
         _buildLineChartBarData(generationSpots, Colors.greenAccent, [Colors.greenAccent.withOpacity(0.3), Colors.transparent]),
@@ -115,6 +120,7 @@ class _RealtimeChartState extends State<RealtimeChart> {
   // Helper function to create a styled line with a gradient
   LineChartBarData _buildLineChartBarData(List<FlSpot> spots, Color color, List<Color> gradientColors) {
     return LineChartBarData(
+      
       spots: spots,
       isCurved: true,
       color: color,

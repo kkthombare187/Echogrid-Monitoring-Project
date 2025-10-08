@@ -1,7 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter_project/services/ml_model_service.dart';
+import 'package:flutter_project/widgets/forecast_chart.dart';
+import 'package:flutter_project/widgets/status_card.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({Key? key}) : super(key: key);
@@ -11,166 +12,138 @@ class AnalyticsScreen extends StatefulWidget {
 }
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
-  List<double> _predictions = [];
-  bool _loading = true;
+  // State for Load Forecast
+  List<double>? _loadForecastData;
+  bool _isLoadingLoad = true;
+  String? _loadErrorMessage;
+
+  // State for Solar Forecast
+  String? _solarForecastResult;
+  bool _isLoadingSolar = true;
+  String? _solarErrorMessage;
 
   @override
   void initState() {
     super.initState();
-    fetchPredictions();
+    // Automatically fetch forecasts when the screen is loaded
+    _fetchAllForecasts();
   }
 
-  Future<void> fetchPredictions() async {
-    const url = "https://us-central1-ecogrid-monitor.cloudfunctions.net/predict_load";
+  // A single function to fetch both forecasts in parallel
+  Future<void> _fetchAllForecasts() async {
+    // Set loading state to true for both
+    if (mounted) {
+      setState(() {
+        _isLoadingLoad = true;
+        _isLoadingSolar = true;
+        _loadErrorMessage = null;
+        _solarErrorMessage = null;
+      });
+    }
 
-    final body = jsonEncode({
-      "data": {
-        "day_of_week": DateTime.now().add(Duration(days: 1)).weekday - 1,
-        "day_of_month": DateTime.now().add(Duration(days: 1)).day,
-        "month": DateTime.now().add(Duration(days: 1)).month,
-        "quarter": ((DateTime.now().add(Duration(days: 1)).month - 1) ~/ 3) + 1,
-        "year": DateTime.now().add(Duration(days: 1)).year,
-        "is_weekend": DateTime.now().add(Duration(days: 1)).weekday >= 6 ? 1 : 0
-      }
-    });
+    await Future.wait([
+      _fetchLoadForecast(),
+      _fetchSolarForecast(), // This now calls the new total forecast function
+    ]);
+  }
 
+  Future<void> _fetchLoadForecast() async {
     try {
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {"Content-Type": "application/json"},
-        body: body,
-      );
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      final inputData = {
+        "day_of_week": tomorrow.weekday, "day_of_month": tomorrow.day,
+        "month": tomorrow.month, "quarter": (tomorrow.month / 3).ceil(),
+        "year": tomorrow.year, "is_weekend": (tomorrow.weekday == 6 || tomorrow.weekday == 7) ? 1 : 0,
+      };
+      final predictions = await MlModelService.getLoadForecast(inputData);
+      if (mounted) setState(() => _loadForecastData = predictions);
+    } catch (e) {
+      if (mounted) setState(() => _loadErrorMessage = "Load Forecast Error: ${e.toString()}");
+    } finally {
+      if (mounted) setState(() => _isLoadingLoad = false);
+    }
+  }
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        List<dynamic> preds = data['predictions'];
-
-        setState(() {
-          _predictions = preds.map((e) => (e as num).toDouble()).toList();
-          _loading = false;
-        });
-      } else {
-        throw Exception('Failed to load predictions');
+  // --- THIS FUNCTION IS NOW UPDATED ---
+  Future<void> _fetchSolarForecast() async {
+    try {
+      // It calls the new service method for the total daily forecast
+      final result = await MlModelService.fetchTotalSolarForecast();
+      if (mounted) {
+        // Handle potential errors returned from the service
+        if (result.toLowerCase().startsWith('error:')) {
+            setState(() => _solarErrorMessage = result);
+        } else {
+            setState(() => _solarForecastResult = result);
+        }
       }
     } catch (e) {
-      print(e);
-      setState(() {
-        _loading = false;
-      });
+      if (mounted) setState(() => _solarErrorMessage = "Solar Forecast Error: ${e.toString()}");
+    } finally {
+      if (mounted) setState(() => _isLoadingSolar = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[900],
-      appBar: AppBar(
-        title: const Text('Tomorrow\'s Power Forecast'),
-        backgroundColor: Colors.black87,
+    return RefreshIndicator(
+      onRefresh: _fetchAllForecasts,
+      child: ListView(
+        padding: const EdgeInsets.all(16.0),
+        children: [
+          const Text(
+            'Predictive Analytics',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 24),
+
+          // --- SECTION 1: LOAD FORECAST ---
+          _buildSectionHeader('24-Hour Load Forecast', 'Predicted energy demand for the next 24 hours.'),
+          _buildLoadForecastContent(),
+          const Divider(height: 40),
+
+          // --- SECTION 2: SOLAR GENERATION FORECAST (UI TEXT UPDATED) ---
+          _buildSectionHeader('Total Daily Solar Forecast', 'Total predicted solar energy generation for all of tomorrow.'),
+          _buildSolarForecastContent(),
+        ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  const Text(
-                    'Expected Power Generation (MW) for Each Hour',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 20),
-                  Expanded(
-                    child: _predictions.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'No data available',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          )
-                        : LineChart(
-                            LineChartData(
-                              gridData: FlGridData(
-                                show: true,
-                                drawVerticalLine: true,
-                                getDrawingHorizontalLine: (value) {
-                                  return FlLine(
-                                    color: Colors.white24,
-                                    strokeWidth: 1,
-                                  );
-                                },
-                                getDrawingVerticalLine: (value) {
-                                  return FlLine(
-                                    color: Colors.white24,
-                                    strokeWidth: 1,
-                                  );
-                                },
-                              ),
-                              titlesData: FlTitlesData(
-                                bottomTitles: AxisTitles(
-                                  sideTitles: SideTitles(
-                                    showTitles: true,
-                                    interval: 2,
-                                    getTitlesWidget: (value, meta) {
-                                      int hour = value.toInt();
-                                      return Text(
-                                        '$hour',
-                                        style: const TextStyle(
-                                            color: Colors.white, fontSize: 10),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                leftTitles: AxisTitles(
-                                  sideTitles: SideTitles(
-                                    showTitles: true,
-                                    interval: 2,
-                                    getTitlesWidget: (value, meta) {
-                                      return Text(
-                                        '${value.toInt()}',
-                                        style: const TextStyle(
-                                            color: Colors.white, fontSize: 10),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                topTitles:
-                                    AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                rightTitles:
-                                    AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                              ),
-                              borderData: FlBorderData(
-                                show: true,
-                                border: Border.all(color: Colors.white24),
-                              ),
-                              minX: 0,
-                              maxX: 23,
-                              minY: 0,
-                              maxY: (_predictions.reduce(
-                                          (a, b) => a > b ? a : b) *
-                                      1.2)
-                                  .ceilToDouble(),
-                              lineBarsData: [
-                                LineChartBarData(
-                                  spots: List.generate(
-                                    _predictions.length,
-                                    (index) => FlSpot(index.toDouble(),
-                                        _predictions[index]),
-                                  ),
-                                  isCurved: true,
-                                  color: Colors.greenAccent,
-                                  barWidth: 3,
-                                  dotData: FlDotData(show: true),
-                                ),
-                              ],
-                            ),
-                          ),
-                  ),
-                ],
-              ),
-            ),
     );
   }
+
+  // --- HELPER WIDGETS ---
+
+  Widget _buildSectionHeader(String title, String subtitle) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Text(subtitle, style: const TextStyle(color: Colors.grey)),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildLoadForecastContent() {
+    if (_isLoadingLoad) return const Center(child: Padding(padding: EdgeInsets.all(16.0), child: SpinKitFadingCircle(color: Colors.cyan, size: 50.0)));
+    if (_loadErrorMessage != null) return Center(child: Text(_loadErrorMessage!, style: const TextStyle(color: Colors.redAccent), textAlign: TextAlign.center));
+    if (_loadForecastData != null) return ForecastChart(forecastData: _loadForecastData!);
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildSolarForecastContent() {
+    if (_isLoadingSolar) return const Center(child: Padding(padding: EdgeInsets.all(16.0), child: SpinKitFadingCircle(color: Colors.orangeAccent, size: 50.0)));
+    if (_solarErrorMessage != null) return Center(child: Text(_solarErrorMessage!, style: const TextStyle(color: Colors.redAccent), textAlign: TextAlign.center));
+    if (_solarForecastResult != null) {
+      return StatusCard(
+        // --- TITLE UPDATED FOR CLARITY ---
+        title: "TOMORROW'S TOTAL FORECAST:",
+        subtitle: _solarForecastResult!,
+        icon: Icons.wb_sunny,
+        color: const Color(0xFFf9a825),
+      );
+    }
+    return const SizedBox.shrink();
+  }
 }
+

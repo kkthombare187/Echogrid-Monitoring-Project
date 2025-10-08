@@ -1,6 +1,8 @@
-firebase-functions~=0.1.0
+firebase-functions
 firebase-admin
-pandas
 scikit-learn
+pandas 
+numpy
+tensorflow
 lightgbm
-# add any other packages your model needs
+# Add any other libraries your .pkl file depends on
